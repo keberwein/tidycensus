@@ -5,6 +5,10 @@
 use_tigris <- function(geography, year, cb = TRUE, resolution = "500k",
                        state = NULL, county = NULL, starts_with = NULL) {
 
+  if (year %in% 2011:2012) {
+    cb <- FALSE
+  }
+
   if (geography == "state") {
 
     st <- states(cb = cb, resolution = resolution, year = year, class = "sf")
@@ -18,7 +22,7 @@ use_tigris <- function(geography, year, cb = TRUE, resolution = "500k",
 
     } else if (year %in% c(2000, 2010)) {
       st <- mutate(st, GEOID = STATE)
-      if (cb == TRUE & year == 2000) {
+      if (cb && year == 2000) {
         st <- st %>%
           group_by(GEOID) %>%
           summarize() %>%
@@ -41,7 +45,7 @@ use_tigris <- function(geography, year, cb = TRUE, resolution = "500k",
         st_cast("MULTIPOLYGON")
     } else if (year %in% c(2000, 2010)) {
       ct <- mutate(ct, GEOID = paste0(STATE, COUNTY))
-      if (cb == TRUE & year == 2000) {
+      if (cb && year == 2000) {
         ct <- ct %>%
           group_by(GEOID) %>%
           summarize() %>%
@@ -97,7 +101,7 @@ use_tigris <- function(geography, year, cb = TRUE, resolution = "500k",
 
     return(bg)
 
-  } else if (geography == "zcta" | geography == "zip code tabulation area") {
+  } else if (geography %in% c("zcta", "zip code tabulation area")) {
 
     # For right now, to get it to work, it has to be cb = FALSE for 2010
     # Re-visit this in the future.
@@ -167,7 +171,7 @@ use_tigris <- function(geography, year, cb = TRUE, resolution = "500k",
 
 census_api_key <- function(key, overwrite = FALSE, install = FALSE){
 
-  if (install == TRUE) {
+  if (install) {
     home <- Sys.getenv("HOME")
     renv <- file.path(home, ".Renviron")
     if(file.exists(renv)){
@@ -187,13 +191,13 @@ census_api_key <- function(key, overwrite = FALSE, install = FALSE){
       }
       else{
         tv <- readLines(renv)
-        if(isTRUE(any(grepl("CENSUS_API_KEY",tv)))){
+        if(any(grepl("CENSUS_API_KEY",tv))){
           stop("A CENSUS_API_KEY already exists. You can overwrite it with the argument overwrite=TRUE", call.=FALSE)
         }
       }
     }
 
-    keyconcat <- paste("CENSUS_API_KEY=","'",key,"'", sep = "")
+    keyconcat <- paste0("CENSUS_API_KEY='", key, "'")
     # Append API key to .Renviron file
     write(keyconcat, renv, sep = "\n", append = TRUE)
     message('Your API key has been stored in your .Renviron and can be accessed by Sys.getenv("CENSUS_API_KEY"). \nTo use now, restart R or run `readRenviron("~/.Renviron")`')
@@ -209,7 +213,7 @@ census_api_key <- function(key, overwrite = FALSE, install = FALSE){
 # Function to generate a vector of variables from an ACS table
 variables_from_table_acs <- function(table, year, survey, cache_table) {
 
-  if (grepl("^DP", table) | grepl("^S[0-9].", table)) {
+  if (grepl("^((DP)|(S[0-9].))", table)) {
     stop("The `table` parameter is only available for ACS detailed tables.", call. = FALSE)
   }
 
@@ -220,7 +224,7 @@ variables_from_table_acs <- function(table, year, survey, cache_table) {
 
 
 
-  if (cache_table == TRUE) {
+  if (cache_table) {
     message(sprintf("Loading %s variables for %s from table %s and caching the dataset for faster future access.", toupper(survey), year, table))
     df <- load_variables(year, survey, cache = TRUE)
   } else {
@@ -254,7 +258,7 @@ variables_from_table_acs <- function(table, year, survey, cache_table) {
 # Function to generate a vector of variables from an Census table
 variables_from_table_decennial <- function(table, year, sumfile, cache_table) {
 
-  if (grepl("^DP", table) | grepl("^S[0-9].", table)) {
+  if (grepl("^((DP)|(S[0-9].))", table)) {
     stop("The `table` parameter is only available for ACS detailed tables.", call. = FALSE)
   }
 
@@ -263,7 +267,7 @@ variables_from_table_decennial <- function(table, year, sumfile, cache_table) {
 
   dset <- paste0(sumfile, "_", year, ".rds")
 
-  if (cache_table == TRUE) {
+  if (cache_table) {
 
     df <- load_variables(year, sumfile, cache = TRUE)
     names(df) <- tolower(names(df))
